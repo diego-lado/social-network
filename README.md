@@ -172,3 +172,8 @@ npm test -- src/services/__tests__/api.test.ts
 # Linting
 npm run lint
 ```
+
+## Analisis de Lighthouse
+
+![Lighthouse Analisis](https://i.postimg.cc/7hL82KSv/lighthouse-analysis.png)
+
