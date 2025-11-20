@@ -65,9 +65,14 @@ export function CommentFormModal({ comment, isOpen, onClose, onSubmit }: Comment
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg shadow-xl z-50 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-6">
-            <Dialog.Title className="text-2xl font-bold text-gray-900">
-              {isEditMode ? 'Editar Comentario' : 'Nuevo Comentario'}
-            </Dialog.Title>
+            <div className="flex-1">
+              <Dialog.Title className="text-2xl font-bold text-gray-900">
+                {isEditMode ? 'Editar Comentario' : 'Nuevo Comentario'}
+              </Dialog.Title>
+              <Dialog.Description className="sr-only">
+                {isEditMode ? 'Formulario para editar un comentario existente' : 'Formulario para crear un nuevo comentario'}
+              </Dialog.Description>
+            </div>
             <Dialog.Close asChild>
               <button
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
