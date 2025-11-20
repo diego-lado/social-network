@@ -2,12 +2,33 @@
  * @vitest-environment node
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { api } from '../api'
 import type { Post, Comment } from '@/types'
 
-// Mock de fetch global
-const mockFetch = vi.fn()
-global.fetch = mockFetch as any
+// Mock de axios antes de importar el módulo api
+vi.mock('axios', () => {
+  const mockInstance = {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    interceptors: {
+      request: { use: vi.fn() },
+      response: { use: vi.fn() },
+    },
+  }
+  return {
+    default: {
+      create: vi.fn(() => mockInstance),
+    },
+  }
+})
+
+// Importar api después del mock
+import { api } from '../api'
+import axios from 'axios'
+
+// Obtener la instancia mockeada desde el resultado de create
+const mockAxiosInstance = (axios.create as any).mock.results[0]?.value
 
 describe('API Service', () => {
   beforeEach(() => {
@@ -42,40 +63,48 @@ describe('API Service', () => {
           },
         ]
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockPosts,
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: mockPosts,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.getPosts()
 
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/post?page=1&limit=10&sortBy=createdAt&order=desc')
-        )
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/post', {
+          params: { page: 1, limit: 10, sortBy: 'createdAt', order: 'desc' }
+        })
         expect(result).toEqual(mockPosts)
       })
 
       it('should fetch posts with custom pagination and sort order', async () => {
         const mockPosts: Post[] = []
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockPosts,
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: mockPosts,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         await api.getPosts(2, 20, 'oldest')
 
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/post?page=2&limit=20&sortBy=createdAt&order=asc')
-        )
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/post', {
+          params: { page: 2, limit: 20, sortBy: 'createdAt', order: 'asc' }
+        })
       })
 
       it('should throw error when fetch fails', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 500,
+        mockAxiosInstance.get.mockRejectedValueOnce({
+          response: {
+            status: 500,
+            data: { message: 'Server Error' },
+          },
         })
 
-        await expect(api.getPosts()).rejects.toThrow('Failed to fetch posts')
+        await expect(api.getPosts()).rejects.toThrow()
       })
     })
 
@@ -90,24 +119,29 @@ describe('API Service', () => {
           createdAt: '2024-01-01T00:00:00Z',
         }
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockPost,
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: mockPost,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.getSinglePost('1')
 
-        expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/post/1'))
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/post/1')
         expect(result).toEqual(mockPost)
       })
 
       it('should throw error when post not found', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 404,
+        mockAxiosInstance.get.mockRejectedValueOnce({
+          response: {
+            status: 404,
+            data: { message: 'Not Found' },
+          },
         })
 
-        await expect(api.getSinglePost('999')).rejects.toThrow('Failed to fetch post')
+        await expect(api.getSinglePost('999')).rejects.toThrow()
       })
     })
 
@@ -126,33 +160,29 @@ describe('API Service', () => {
           createdAt: '2024-01-01T00:00:00Z',
         } as Post
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => createdPost,
+        mockAxiosInstance.post.mockResolvedValueOnce({
+          data: createdPost,
+          status: 201,
+          statusText: 'Created',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.createPost(newPost)
 
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/post'),
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(newPost),
-          }
-        )
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/post', newPost)
         expect(result).toEqual(createdPost)
       })
 
       it('should throw error when creation fails', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 400,
+        mockAxiosInstance.post.mockRejectedValueOnce({
+          response: {
+            status: 400,
+            data: { message: 'Bad Request' },
+          },
         })
 
-        await expect(api.createPost({ title: 'Test' })).rejects.toThrow('Failed to create post')
+        await expect(api.createPost({ title: 'Test' })).rejects.toThrow()
       })
     })
 
@@ -172,33 +202,29 @@ describe('API Service', () => {
           createdAt: '2024-01-01T00:00:00Z',
         }
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => updatedPost,
+        mockAxiosInstance.put.mockResolvedValueOnce({
+          data: updatedPost,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.updatePost('1', updateData)
 
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/post/1'),
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updateData),
-          }
-        )
+        expect(mockAxiosInstance.put).toHaveBeenCalledWith('/post/1', updateData)
         expect(result).toEqual(updatedPost)
       })
 
       it('should throw error when update fails', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 404,
+        mockAxiosInstance.put.mockRejectedValueOnce({
+          response: {
+            status: 404,
+            data: { message: 'Not Found' },
+          },
         })
 
-        await expect(api.updatePost('999', { title: 'Test' })).rejects.toThrow('Failed to update post')
+        await expect(api.updatePost('999', { title: 'Test' })).rejects.toThrow()
       })
     })
 
@@ -213,29 +239,29 @@ describe('API Service', () => {
           createdAt: '2024-01-01T00:00:00Z',
         }
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => deletedPost,
+        mockAxiosInstance.delete.mockResolvedValueOnce({
+          data: deletedPost,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.deletePost('1')
 
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/post/1'),
-          {
-            method: 'DELETE',
-          }
-        )
+        expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/post/1')
         expect(result).toEqual(deletedPost)
       })
 
       it('should throw error when deletion fails', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 404,
+        mockAxiosInstance.delete.mockRejectedValueOnce({
+          response: {
+            status: 404,
+            data: { message: 'Not Found' },
+          },
         })
 
-        await expect(api.deletePost('999')).rejects.toThrow('Failed to delete post')
+        await expect(api.deletePost('999')).rejects.toThrow()
       })
     })
   })
@@ -262,21 +288,27 @@ describe('API Service', () => {
           },
         ]
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockComments,
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: mockComments,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.getComments('1')
 
-        expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/post/1/comment'))
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/post/1/comment')
         expect(result).toEqual(mockComments)
       })
 
       it('should return empty array when post has no comments', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => [],
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: [],
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.getComments('1')
@@ -284,12 +316,14 @@ describe('API Service', () => {
       })
 
       it('should throw error when fetch fails', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 500,
+        mockAxiosInstance.get.mockRejectedValueOnce({
+          response: {
+            status: 500,
+            data: { message: 'Server Error' },
+          },
         })
 
-        await expect(api.getComments('1')).rejects.toThrow('Failed to fetch comments')
+        await expect(api.getComments('1')).rejects.toThrow()
       })
     })
 
@@ -308,23 +342,17 @@ describe('API Service', () => {
           createdAt: '2024-01-01T00:00:00Z',
         } as Comment
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => createdComment,
+        mockAxiosInstance.post.mockResolvedValueOnce({
+          data: createdComment,
+          status: 201,
+          statusText: 'Created',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.createComment('1', newComment)
 
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/post/1/comment'),
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(newComment),
-          }
-        )
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/post/1/comment', newComment)
         expect(result).toEqual(createdComment)
       })
 
@@ -342,9 +370,12 @@ describe('API Service', () => {
           createdAt: '2024-01-01T00:00:00Z',
         } as Comment
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => createdReply,
+        mockAxiosInstance.post.mockResolvedValueOnce({
+          data: createdReply,
+          status: 201,
+          statusText: 'Created',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.createComment('1', replyComment)
@@ -352,12 +383,14 @@ describe('API Service', () => {
       })
 
       it('should throw error when creation fails', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 400,
+        mockAxiosInstance.post.mockRejectedValueOnce({
+          response: {
+            status: 400,
+            data: { message: 'Bad Request' },
+          },
         })
 
-        await expect(api.createComment('1', { content: 'Test' })).rejects.toThrow('Failed to create comment')
+        await expect(api.createComment('1', { content: 'Test' })).rejects.toThrow()
       })
     })
 
@@ -376,33 +409,29 @@ describe('API Service', () => {
           parentId: null,
         }
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => updatedComment,
+        mockAxiosInstance.put.mockResolvedValueOnce({
+          data: updatedComment,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.updateComment('1', '1', updateData)
 
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/post/1/comment/1'),
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updateData),
-          }
-        )
+        expect(mockAxiosInstance.put).toHaveBeenCalledWith('/post/1/comment/1', updateData)
         expect(result).toEqual(updatedComment)
       })
 
       it('should throw error when update fails', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 404,
+        mockAxiosInstance.put.mockRejectedValueOnce({
+          response: {
+            status: 404,
+            data: { message: 'Not Found' },
+          },
         })
 
-        await expect(api.updateComment('1', '999', { content: 'Test' })).rejects.toThrow('Failed to update comment')
+        await expect(api.updateComment('1', '999', { content: 'Test' })).rejects.toThrow()
       })
     })
 
@@ -417,29 +446,29 @@ describe('API Service', () => {
           parentId: null,
         }
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => deletedComment,
+        mockAxiosInstance.delete.mockResolvedValueOnce({
+          data: deletedComment,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const result = await api.deleteComment('1', '1')
 
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/post/1/comment/1'),
-          {
-            method: 'DELETE',
-          }
-        )
+        expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/post/1/comment/1')
         expect(result).toEqual(deletedComment)
       })
 
       it('should throw error when deletion fails', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 404,
+        mockAxiosInstance.delete.mockRejectedValueOnce({
+          response: {
+            status: 404,
+            data: { message: 'Not Found' },
+          },
         })
 
-        await expect(api.deleteComment('1', '999')).rejects.toThrow('Failed to delete comment')
+        await expect(api.deleteComment('1', '999')).rejects.toThrow()
       })
     })
 
@@ -481,26 +510,29 @@ describe('API Service', () => {
         ]
 
         // Mock getComments
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => allComments,
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: allComments,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         // Mock deleteComment calls (4 times: for comment 1, 2, 3, and 4)
         const deletedComment = { id: '1', content: 'Deleted' }
-        ;(global.fetch as any)
-          .mockResolvedValueOnce({ ok: true, json: async () => ({ ...deletedComment, id: '1' }) })
-          .mockResolvedValueOnce({ ok: true, json: async () => ({ ...deletedComment, id: '2' }) })
-          .mockResolvedValueOnce({ ok: true, json: async () => ({ ...deletedComment, id: '3' }) })
-          .mockResolvedValueOnce({ ok: true, json: async () => ({ ...deletedComment, id: '4' }) })
+        mockAxiosInstance.delete
+          .mockResolvedValueOnce({ data: { ...deletedComment, id: '1' }, status: 200, statusText: 'OK', headers: {}, config: {} as any })
+          .mockResolvedValueOnce({ data: { ...deletedComment, id: '2' }, status: 200, statusText: 'OK', headers: {}, config: {} as any })
+          .mockResolvedValueOnce({ data: { ...deletedComment, id: '3' }, status: 200, statusText: 'OK', headers: {}, config: {} as any })
+          .mockResolvedValueOnce({ data: { ...deletedComment, id: '4' }, status: 200, statusText: 'OK', headers: {}, config: {} as any })
 
         await api.deleteCommentRecursive('1', '1')
 
         // Should call getComments once
-        expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/post/1/comment'))
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/post/1/comment')
 
         // Should delete all 4 comments (parent + 3 children)
-        expect(global.fetch).toHaveBeenCalledTimes(5) // 1 getComments + 4 deleteComment
+        expect(mockAxiosInstance.delete).toHaveBeenCalledTimes(4)
       })
 
       it('should handle comment with no children', async () => {
@@ -515,34 +547,43 @@ describe('API Service', () => {
           },
         ]
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => allComments,
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: allComments,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const deletedComment = { id: '1', content: 'Deleted' }
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => deletedComment,
+        mockAxiosInstance.delete.mockResolvedValueOnce({
+          data: deletedComment,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         await api.deleteCommentRecursive('1', '1')
 
         // Should only delete the parent comment
-        expect(global.fetch).toHaveBeenCalledTimes(2) // 1 getComments + 1 deleteComment
+        expect(mockAxiosInstance.delete).toHaveBeenCalledTimes(1)
       })
 
       it('should return early when post has no comments', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => [],
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: [],
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         await api.deleteCommentRecursive('1', '1')
 
         // Should only call getComments, no deleteComment calls
-        expect(global.fetch).toHaveBeenCalledTimes(1)
-        expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/post/1/comment'))
+        expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1)
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/post/1/comment')
       })
 
       it('should continue deleting even if some deletions fail', async () => {
@@ -565,26 +606,31 @@ describe('API Service', () => {
           },
         ]
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => allComments,
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: allComments,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         // First delete succeeds, second fails
-        ;(global.fetch as any)
-          .mockResolvedValueOnce({ ok: true, json: async () => ({ id: '1' }) })
-          .mockResolvedValueOnce({ ok: false, status: 500 })
+        mockAxiosInstance.delete
+          .mockResolvedValueOnce({ data: { id: '1' }, status: 200, statusText: 'OK', headers: {}, config: {} as any })
+          .mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server Error' } } })
 
         await api.deleteCommentRecursive('1', '1')
 
         // Should attempt to delete both comments
-        expect(global.fetch).toHaveBeenCalledTimes(3) // 1 getComments + 2 deleteComment attempts
+        expect(mockAxiosInstance.delete).toHaveBeenCalledTimes(2)
       })
 
       it('should throw error when getComments fails', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 500,
+        mockAxiosInstance.get.mockRejectedValueOnce({
+          response: {
+            status: 500,
+            data: { message: 'Server Error' },
+          },
         })
 
         await expect(api.deleteCommentRecursive('1', '1')).rejects.toThrow()
@@ -612,33 +658,39 @@ describe('API Service', () => {
           },
         ]
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => comments,
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: comments,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         const deletedComment = { id: '1', content: 'Deleted' }
-        ;(global.fetch as any)
-          .mockResolvedValueOnce({ ok: true, json: async () => ({ ...deletedComment, id: '1' }) })
-          .mockResolvedValueOnce({ ok: true, json: async () => ({ ...deletedComment, id: '2' }) })
+        mockAxiosInstance.delete
+          .mockResolvedValueOnce({ data: { ...deletedComment, id: '1' }, status: 200, statusText: 'OK', headers: {}, config: {} as any })
+          .mockResolvedValueOnce({ data: { ...deletedComment, id: '2' }, status: 200, statusText: 'OK', headers: {}, config: {} as any })
 
         await api.deleteAllComments('1')
 
         // Should call getComments once and deleteComment twice
-        expect(global.fetch).toHaveBeenCalledTimes(3) // 1 getComments + 2 deleteComment
-        expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/post/1/comment'))
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/post/1/comment')
+        expect(mockAxiosInstance.delete).toHaveBeenCalledTimes(2)
       })
 
       it('should return early when post has no comments', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => [],
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: [],
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         await api.deleteAllComments('1')
 
         // Should only call getComments
-        expect(global.fetch).toHaveBeenCalledTimes(1)
+        expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1)
       })
 
       it('should continue deleting even if some deletions fail', async () => {
@@ -661,26 +713,31 @@ describe('API Service', () => {
           },
         ]
 
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => comments,
+        mockAxiosInstance.get.mockResolvedValueOnce({
+          data: comments,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as any,
         })
 
         // First delete succeeds, second fails
-        ;(global.fetch as any)
-          .mockResolvedValueOnce({ ok: true, json: async () => ({ id: '1' }) })
-          .mockResolvedValueOnce({ ok: false, status: 500 })
+        mockAxiosInstance.delete
+          .mockResolvedValueOnce({ data: { id: '1' }, status: 200, statusText: 'OK', headers: {}, config: {} as any })
+          .mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server Error' } } })
 
         await api.deleteAllComments('1')
 
         // Should attempt to delete both comments
-        expect(global.fetch).toHaveBeenCalledTimes(3) // 1 getComments + 2 deleteComment attempts
+        expect(mockAxiosInstance.delete).toHaveBeenCalledTimes(2)
       })
 
       it('should handle error when getComments fails gracefully', async () => {
-        ;(global.fetch as any).mockResolvedValueOnce({
-          ok: false,
-          status: 500,
+        mockAxiosInstance.get.mockRejectedValueOnce({
+          response: {
+            status: 500,
+            data: { message: 'Server Error' },
+          },
         })
 
         // Should not throw, just log warning
@@ -689,4 +746,3 @@ describe('API Service', () => {
     })
   })
 })
-

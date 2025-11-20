@@ -1,91 +1,59 @@
+import axios from 'axios';
 import type { Post, Comment } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// Crear instancia de axios (preparada para agregar interceptor después)
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 export const api = {
   // Posts
   getPosts: async (page: number = 1, limit: number = 10, sortOrder: 'newest' | 'oldest' = 'newest'): Promise<Post[]> => {
     const sortParam = sortOrder === 'newest' ? 'createdAt' : 'createdAt';
     const orderParam = sortOrder === 'newest' ? 'desc' : 'asc';
-    const response = await fetch(
-      `${API_BASE_URL}/post?page=${page}&limit=${limit}&sortBy=${sortParam}&order=${orderParam}`
-    );
-    if (!response.ok) {
-      throw new Error('Failed to fetch posts');
-    }
-    return response.json();
+    const response = await apiClient.get('/post', {
+      params: { page, limit, sortBy: sortParam, order: orderParam }
+    });
+    return response.data;
   },
 
   getSinglePost: async (postId: string): Promise<Post> => {
-    const response = await fetch(`${API_BASE_URL}/post/${postId}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch post');
-    }
-    return response.json();
+    const response = await apiClient.get(`/post/${postId}`);
+    return response.data;
   },
 
   createPost: async (post: Partial<Post>): Promise<Post> => {
-    const response = await fetch(`${API_BASE_URL}/post`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(post),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create post');
-    }
-    return response.json();
+    const response = await apiClient.post('/post', post);
+    return response.data;
   },
 
   updatePost: async (postId: string, post: Partial<Post>): Promise<Post> => {
-    const response = await fetch(`${API_BASE_URL}/post/${postId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(post),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update post');
-    }
-    return response.json();
+    const response = await apiClient.put(`/post/${postId}`, post);
+    return response.data;
   },
 
   deletePost: async (postId: string): Promise<Post> => {
-    const response = await fetch(`${API_BASE_URL}/post/${postId}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      throw new Error('Failed to delete post');
-    }
-    return response.json();
+    const response = await apiClient.delete(`/post/${postId}`);
+    return response.data;
   },
 
   // Comments
   getComments: async (postId: string): Promise<Comment[]> => {
-    const response = await fetch(`${API_BASE_URL}/post/${postId}/comment`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch comments');
-    }
-    return response.json();
+    const response = await apiClient.get(`/post/${postId}/comment`);
+    return response.data;
   },
 
   createComment: async (
     postId: string,
     comment: Partial<Comment>
   ): Promise<Comment> => {
-    const response = await fetch(`${API_BASE_URL}/post/${postId}/comment`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(comment),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create comment');
-    }
-    return response.json();
+    const response = await apiClient.post(`/post/${postId}/comment`, comment);
+    return response.data;
   },
 
   updateComment: async (
@@ -93,36 +61,21 @@ export const api = {
     commentId: string,
     comment: Partial<Comment>
   ): Promise<Comment> => {
-    const response = await fetch(
-      `${API_BASE_URL}/post/${postId}/comment/${commentId}`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(comment),
-      }
+    const response = await apiClient.put(
+      `/post/${postId}/comment/${commentId}`,
+      comment
     );
-    if (!response.ok) {
-      throw new Error('Failed to update comment');
-    }
-    return response.json();
+    return response.data;
   },
 
   deleteComment: async (
     postId: string,
     commentId: string
   ): Promise<Comment> => {
-    const response = await fetch(
-      `${API_BASE_URL}/post/${postId}/comment/${commentId}`,
-      {
-        method: 'DELETE',
-      }
+    const response = await apiClient.delete(
+      `/post/${postId}/comment/${commentId}`
     );
-    if (!response.ok) {
-      throw new Error('Failed to delete comment');
-    }
-    return response.json();
+    return response.data;
   },
 
   // Borrar un comentario y todos sus hijos

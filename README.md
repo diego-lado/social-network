@@ -18,6 +18,7 @@ Una aplicación de red social construida con React, TypeScript y Radix UI.
 - ✅ Code splitting con lazy loading
 - ✅ Infinite scroll para posts
 - ✅ Manejo de formularios con React Hook Form
+- ✅ Cliente HTTP con Axios
 
 ## Tecnologías
 
@@ -28,6 +29,7 @@ Una aplicación de red social construida con React, TypeScript y Radix UI.
 - **Tailwind CSS 4** - Estilos utilitarios
 - **React Router 7** - Navegación
 - **React Query (TanStack Query)** - Gestión de estado del servidor
+- **Axios** - Cliente HTTP
 - **React Hook Form** - Manejo de formularios
 - **Vitest** - Testing
 - **Docker** - Containerización
@@ -102,7 +104,7 @@ src/
 ├── services/           # Servicios de API
 │   ├── __tests__/      # Tests del servicio API
 │   │   └── api.test.ts
-│   └── api.ts
+│   └── api.ts         # Cliente API con Axios
 ├── shared/             # Componentes y utilidades compartidas
 │   ├── icons/          # Iconos SVG
 │   ├── layout/         # Componentes de layout
@@ -134,7 +136,7 @@ src/
 
 ## API
 
-La aplicación consume la API de MockAPI:
+La aplicación consume la API de MockAPI usando **Axios** como cliente HTTP:
 - Base URL: `https://665de6d7e88051d60408c32d.mockapi.io`
 
 ### Endpoints
@@ -151,6 +153,15 @@ La aplicación consume la API de MockAPI:
 - `POST /post/:id/comment` - Crear un comentario
 - `PUT /post/:id/comment/:commentId` - Actualizar un comentario
 - `DELETE /post/:id/comment/:commentId` - Eliminar un comentario
+
+### Cliente HTTP (Axios)
+
+El proyecto utiliza **Axios** como cliente HTTP con las siguientes características:
+
+- ✅ Instancia configurada con `baseURL` y headers por defecto
+- ✅ Manejo automático de errores HTTP
+- ✅ Transformación automática de JSON
+- ✅ Soporte para parámetros de query
 
 ## Tests
 
