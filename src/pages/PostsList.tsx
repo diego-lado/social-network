@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { PlusIcon, ChevronDownIcon } from '@/shared/icons/Icons'
@@ -45,8 +45,21 @@ export function PostsList() {
     initialPageParam: 1,
   })
 
-  // Obtener todos los posts de todas las páginas
-  const allPosts = data?.pages.flat() ?? []
+  // Obtener todos los posts de todas las páginas y ordenarlos correctamente
+  // Usamos useMemo para evitar reordenar en cada render
+  const allPosts = useMemo(() => {
+    const posts = data?.pages.flat() ?? []
+    // Eliminar duplicados por si acaso (usando id como clave única)
+    const uniquePosts = Array.from(
+      new Map(posts.map(post => [post.id, post])).values()
+    )
+    // Ordenar por fecha
+    return uniquePosts.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime()
+      const dateB = new Date(b.createdAt).getTime()
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB
+    })
+  }, [data?.pages, sortOrder])
 
   // Observer para detectar cuando el usuario llega al final
   useEffect(() => {
